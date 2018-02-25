@@ -1,0 +1,139 @@
+---
+title: "ADVANCE MACHINE LEARNING ASSIGNMENT 1"
+author: "SANDIPAN PAUL"
+date: "20 February 2018"
+output: html_document
+---
+
+QUESTION
+
+* Perform a time series analysis on "Airpassenger" data. This data is available to you by default in R.
+
+* Approach the problem from a professional angle and try to gather as many information about the
+dataset as possible from you analysis.
+
+* Try to forecast the dataset for 2 more years after the datasets stops providing the information.
+
+
+
+ANSWER
+
+ABOUT DATASET - Monthly totals of international airline passengers between 1949 to 1960.
+
+LOAD AND PLOT
+
+```{r}
+data("AirPassengers")
+AP <- AirPassengers
+
+# TIME SERIES PLOT OF AIRPASSENGERS DATASET
+plot(AP, ylab="Passengers (1000s)", type="o", pch =20)
+
+# INFERENCE - Seasonality appears to increase with the general trend suggesting a multiplicative model rather than an additive model.
+
+# DECOMPOSING THE DATA AND PLOT
+AP.decompM <- decompose(AP, type = "multiplicative")
+plot(AP.decompM)
+
+# MODEL FITTING
+# TREND COMPONENT - Inspecting the trend component in the decomposition plot suggests that the relationship is linear, thus fitting a linear model.
+t <- seq(1, 144, 1)
+modelTrend <- lm(formula = AP.decompM$trend ~ t)
+predT <- predict.lm(modelTrend, newdata = data.frame(t))
+
+plot(AP.decompM$trend[7:138] ~ t[7:138], ylab="T(t)", xlab="t",
+     type="p", pch=20, main = "Trend Component: Modelled vs Observed")
+lines(predT, col="red")
+
+summary(modelTrend)
+
+#Therefore, the relationship between trend and time can be expressed as:
+#T(t)=2.667t+84.648T(t)=2.667t+84.648
+#And so for 1961 (time 145 to 156 inc.), the trend component (T) is:
+
+Data1961 <- data.frame("T" = 2.667*seq(145, 156, 1) + 84.648, S=rep(0,12), e=rep(0,12),
+                       row.names = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+Data1961
+
+# And so for 1962 (time 157 to 168 inc.), the trend component (T) is:
+Data1962 <- data.frame("T" = 2.667*seq(157, 168, 1) + 84.648, S=rep(0,12), e=rep(0,12),
+                       row.names = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+Data1962
+
+#SEASONAL COMPONENT -Inspecting the seasonal (S) component of the decomposition reveals:
+
+AP.decompM$seasonal
+
+#Thus the seasonal (S) component to the new 1961 and 1962 dataset is:
+
+Data1961$S <- unique(AP.decompM$seasonal)
+Data1961
+
+Data1962$S <- unique(AP.decompM$seasonal)
+Data1962
+
+#Random Error Component
+#Ploting the density estimation of the random error (e) component of the decomposition shows an approximate normal distribution:
+
+plot(density(AP.decompM$random[7:138]),
+             main="Random Error") #Values 1:6 & 139:44 are NA
+
+#Bootstrapping the mean statistic of the random error would produce an accurate approximation of the population mean of the randon error. However, I believe this is too costly for the reward it gives and thus I shall assume the population mean of the random error is:
+
+mean(AP.decompM$random[7:138])
+## [1] 0.9982357
+#which is 1.
+
+#Thus the decomposed dataset for 1961 and 1962 is:
+
+Data1961$e <- 1
+Data1961
+
+Data1962$e <- 1
+Data1962
+
+#Predictions (1961)
+#For my 1961 3-point estimates for each month, I assume that all variation is due to the random error (for simplicity) and so taking the standard deviation of the random error distribution gives:
+
+sd_error <- sd(AP.decompM$random[7:138])
+sd_error
+
+#And so the 3-point esitmates (Realistic, Optimistic, Pessimistic) for the predictions is simply the expected prediction (T???S???eT???S???e), and 95% CI interval either way using the standard deviation of the random error (95% CI = 1.95???sd1.95???sd).
+
+Data1961$R <- Data1961$T * Data1961$S * Data1961$e                  #Realistic Estimation
+Data1961$O <- Data1961$T * Data1961$S * (Data1961$e+1.95*sd_error)  #Optimistic Estimation
+Data1961$P <- Data1961$T * Data1961$S * (Data1961$e-1.95*sd_error)  #Pessimistic Estimation
+Data1961
+
+#Graphically:
+
+xr = c(1,156)
+plot(AP.decompM$x, xlim=xr, ylab = "Passengers (100s)", xlab = "Month")
+lines(data.frame(AP.decompM$x))
+lines(Data1961$R, x=seq(145,156,1), col="blue")
+lines(Data1961$O, x=seq(145,156,1), col="green")
+lines(Data1961$P, x=seq(145,156,1), col="red")
+
+#Predictions (1962)
+#For my 1962 3-point estimates for each month, I assume that all variation is due to the random error (for simplicity) and so taking the standard deviation of the random error distribution gives:
+
+sd_error <- sd(AP.decompM$random[7:138])
+sd_error
+
+#And so the 3-point esitmates (Realistic, Optimistic, Pessimistic) for the predictions is simply the expected prediction (T???S???eT???S???e), and 95% CI interval either way using the standard deviation of the random error (95% CI = 1.95???sd1.95???sd).
+
+Data1962$R <- Data1962$T * Data1962$S * Data1962$e                  #Realistic Estimation
+Data1962$O <- Data1962$T * Data1962$S * (Data1962$e+1.95*sd_error)  #Optimistic Estimation
+Data1962$P <- Data1962$T * Data1962$S * (Data1962$e-1.95*sd_error)  #Pessimistic Estimation
+Data1962
+
+#Graphically:
+
+xr = c(1,168)
+plot(AP.decompM$x, xlim=xr, ylab = "Passengers (100s)", xlab = "Month")
+lines(data.frame(AP.decompM$x))
+lines(Data1961$R, x=seq(157,168,1), col="blue")
+lines(Data1961$O, x=seq(157,168,1), col="green")
+lines(Data1961$P, x=seq(157,168,1), col="red")
+```
+
